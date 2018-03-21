@@ -21,7 +21,7 @@
         <el-option
           v-for="item in dropAllPotions"
           :key="item"
-          :label="item"
+          :label="potionNameFormatter(item)"
           :value="item">
           </el-option>
         </el-select>
@@ -82,6 +82,7 @@
     <el-button type="primary" style="margin-top:30px;margin-bottom:30px" v-clipboard:copy="output" v-clipboard:success="onCopySuccess" v-clipboard:error="onCopyFail">复制到剪贴板</el-button>
 
     <el-dialog :title="inputCardTitle" :visible.sync="dialogCardsVisible">
+      <el-input v-model="filterCards" clearable placeholder="过滤卡片 id / name"></el-input>
       <el-table
         :data="tableCardsKeys"
         height="450"
@@ -115,9 +116,11 @@
     </el-dialog>
 
     <el-dialog :title="inputRelicTitle" :visible.sync="dialogRelicsVisible">
+      <el-input v-model="filterRelics" clearable placeholder="过滤遗物 id / name"></el-input>
       <el-table
+        style="margin-top:10px"
         :data="tableRelicsKeys"
-        height="450"
+        height="420"
         @current-change="onRelicsSelectedChange"
         highlight-current-row>
         <el-table-column
@@ -175,6 +178,10 @@ export default {
       output: "",
       dialogRelicsVisible: false,
       dialogCardsVisible: false,
+      allTableCards: allCards,
+      allTableRelics: allRelics,
+      filterRelics: "",
+      filterCards: ""
     };
   },
   methods: {
@@ -184,6 +191,7 @@ export default {
     cardsNameFormatter: row => allCards[row].NAME,
     cardsNameObjectFormatter: row => allCards[row.id].NAME,
     cardsDescFormatter: row => allCards[row].DESCRIPTION,
+    potionNameFormatter: row => allPotions[row].NAME,
     onCardsSelectionChange(data) {
       this.selectedCards = data;
     },
@@ -225,14 +233,14 @@ export default {
       this.inputCard = row;
     },
     addCard() {
-      let value = this.inputCard.trim()
-      if (!value) {
+       if(!this.inputCard || !this.inputCard.trim()){
         this.$message({
           message: "请选择卡片",
           type: "warning"
         });
         return;
       }
+      let value = this.inputCard.trim();
       this.cards.push({
         id: value,
         upgrades: 0
@@ -243,20 +251,20 @@ export default {
       });
     },
     addRelic() {
-      let value = this.inputRelic.trim()
-      if (!value) {
+      if(!this.inputRelic || !this.inputRelic.trim()){
         this.$message({
           message: "请选择遗物",
           type: "warning"
         });
         return;
       }
-      if(this.relics.includes(value)){
+      let value = this.inputRelic.trim();
+      if (this.relics.includes(value)) {
         this.$message({
           message: "已经添加过该遗物",
           type: "error"
         });
-        return
+        return;
       }
       this.relics.push(value);
       this.$message({
@@ -312,19 +320,35 @@ export default {
     },
     tableRelicsKeys() {
       let out = [];
-      for (let key in allRelics) {
+      for (let key in this.allTableRelics) {
         out.push(key);
       }
-      out.sort()
+      out.sort();
       return out;
     },
     tableCardsKeys() {
       let out = [];
-      for (let key in allCards) {
+      for (let key in this.allTableCards) {
         out.push(key);
       }
-      out.sort()
+      out.sort();
       return out;
+    },
+    cardsNameIdMap() {
+      let map = {};
+      for (let key in allCards) {
+        let name = allCards[key].NAME;
+        map[name] = key;
+      }
+      return map;
+    },
+    relicsNameIdMap() {
+      let map = {};
+      for (let key in allRelics) {
+        let name = allRelics[key].NAME;
+        map[name] = key;
+      }
+      return map;
     }
   },
   mounted() {
@@ -335,20 +359,62 @@ export default {
   watch: {
     inputRelic(curVal, oldVal) {
       this.inputRelicTitle =
-        "选择遗物\u3000( " +
-        curVal +
-        " - " +
-        allRelics[curVal].NAME +
-        " )";
+        "选择遗物\u3000( " + curVal + " - " + allRelics[curVal].NAME + " )";
     },
-     inputCard(curVal, oldVal) {
+    inputCard(curVal, oldVal) {
       this.inputCardTitle =
-        "选择卡片\u3000( " +
-        curVal +
-        " - " +
-        allCards[curVal].NAME +
-        " )";
+        "选择卡片\u3000( " + curVal + " - " + allCards[curVal].NAME + " )";
     },
+    filterCards(curVal, oldVal) {
+      let value = curVal.trim()
+      if (!value) {
+        this.allTableCards = allCards;
+        return;
+      }
+      let keys = [];
+      let hasAdd = false;
+      for (let key in allCards) {
+        if (key.toLowerCase().includes(value.toLowerCase())) {
+          keys.push(key);
+          hasAdd = true;
+        }
+      }
+      if (!hasAdd) {
+        for (let key in this.cardsNameIdMap) {
+          if (key.toLowerCase().includes(value.toLowerCase())) {
+            keys.push(this.cardsNameIdMap[key]);
+          }
+        }
+      }
+      let result = {};
+      keys.forEach(item => (result[item] = allCards[item]));
+      this.allTableCards = result;
+    },
+    filterRelics(curVal, oldVal) {
+      let value = curVal.trim()
+      if (!value) {
+        this.allTableRelics = allRelics;
+        return;
+      }
+      let keys = [];
+      let hasAdd = false;
+      for (let key in allRelics) {
+        if (key.toLowerCase().includes(value.toLowerCase())) {
+          keys.push(key);
+          hasAdd = true;
+        }
+      }
+      if (!hasAdd) {
+        for (let key in this.relicsNameIdMap) {
+          if (key.toLowerCase().includes(value.toLowerCase())) {
+            keys.push(this.relicsNameIdMap[key]);
+          }
+        }
+      }
+      let result = {};
+      keys.forEach(item => (result[item] = allRelics[item]));
+      this.allTableRelics = result;
+    }
   }
 };
 </script>

@@ -29,15 +29,9 @@
     <div class="flex-row">
       <div style="width:50%">
         <h2>卡片</h2>
-        <el-autocomplete 
-          v-model="inputCard"
-          clearable 
-          placeholder="请输入卡片名称"
-          :trigger-on-focus="false">
-        </el-autocomplete>
-        <el-button type="primary" style="margin-left:30px" @click="addCard">添加卡片</el-button>
-        <el-button type="success" style="margin-left:30px" @click="upgradeSelectedCards">升级选中</el-button>
-        <el-button type="danger" style="margin-left:30px" @click="deleteSelectedCards">删除选中</el-button>
+        <el-button type="primary" @click="dialogCardsVisible = true">添加卡片</el-button>
+        <el-button type="success" style="margin-left:50px" @click="upgradeSelectedCards">升级选中</el-button>
+        <el-button type="danger" style="margin-left:50px" @click="deleteSelectedCards">删除选中</el-button>
         <el-table :data="cards" @selection-change="onCardsSelectionChange" ref="cardsTable">
           <el-table-column
             header-align="center"
@@ -46,12 +40,17 @@
           <el-table-column
             prop="id"
             header-align="center"
-            label="卡片">
+            label="id">
+          </el-table-column>
+          <el-table-column
+            header-align="center"
+            :formatter="cardsNameObjectFormatter"
+            label="name">
           </el-table-column>
           <el-table-column
             header-align="center"
             prop="upgrades"
-            label="升级">
+            label="upgrades">
           </el-table-column>
         </el-table>
       </div>
@@ -68,14 +67,52 @@
           <el-table-column
             header-align="center"
             :formatter="singleFormatter"
-            label="遗物">
+            label="id">
           </el-table-column>
+          <el-table-column
+            header-align="center"
+            :formatter="relicsNameFormatter"
+            label="name">
+        </el-table-column>
         </el-table>
       </div>
     </div>
     
     <el-button type="primary" style="margin-top:30px;margin-bottom:30px" @click="exportFile">生成存档编码</el-button>
     <el-button type="primary" style="margin-top:30px;margin-bottom:30px" v-clipboard:copy="output" v-clipboard:success="onCopySuccess" v-clipboard:error="onCopyFail">复制到剪贴板</el-button>
+
+    <el-dialog :title="inputCardTitle" :visible.sync="dialogCardsVisible">
+      <el-table
+        :data="tableCardsKeys"
+        height="450"
+        highlight-current-row
+        @current-change="onCardsSelectedChange">
+        <el-table-column
+          header-align="center"
+          type="index"
+          width="50">
+        </el-table-column>
+        <el-table-column
+          header-align="center"
+          :formatter="singleFormatter"
+          label="id">
+        </el-table-column>
+        <el-table-column
+          header-align="center"
+          :formatter="cardsNameFormatter"
+          label="name">
+        </el-table-column>
+        <el-table-column
+          header-align="center"
+          :formatter="cardsDescFormatter"
+          label="description">
+        </el-table-column>
+      </el-table>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="dialogCardsVisible = false">取消</el-button>
+        <el-button type="primary" @click="addCard">添加</el-button>
+      </span>
+    </el-dialog>
 
     <el-dialog :title="inputRelicTitle" :visible.sync="dialogRelicsVisible">
       <el-table
@@ -114,9 +151,10 @@
 
 <script>
 import { mapState } from "vuex";
+import { Base64 } from "js-base64";
 import allPotions from "@/config/potions";
 import allRelics from "@/config/relics";
-import { Base64 } from "js-base64";
+import allCards from "@/config/cards";
 
 export default {
   data() {
@@ -131,16 +169,21 @@ export default {
       selectedCards: [],
       selectedRelics: [],
       inputCard: "",
+      inputCardTitle: "选择卡片",
       inputRelic: "",
       inputRelicTitle: "选择遗物",
       output: "",
-      dialogRelicsVisible: false
+      dialogRelicsVisible: false,
+      dialogCardsVisible: false,
     };
   },
   methods: {
     singleFormatter: row => row,
     relicsNameFormatter: row => allRelics[row].NAME,
     relicsDescFormatter: row => allRelics[row].DESCRIPTIONS.join(),
+    cardsNameFormatter: row => allCards[row].NAME,
+    cardsNameObjectFormatter: row => allCards[row.id].NAME,
+    cardsDescFormatter: row => allCards[row].DESCRIPTION,
     onCardsSelectionChange(data) {
       this.selectedCards = data;
     },
@@ -178,25 +221,32 @@ export default {
     onRelicsSelectedChange(row) {
       this.inputRelic = row;
     },
+    onCardsSelectedChange(row) {
+      this.inputCard = row;
+    },
     addCard() {
-      if (!this.inputCard.trim()) {
+      let value = this.inputCard.trim()
+      if (!value) {
         this.$message({
-          message: "请输入卡片名称",
+          message: "请选择卡片",
           type: "warning"
         });
         return;
       }
       this.cards.push({
-        id: this.inputCard.trim(),
+        id: value,
         upgrades: 0
       });
-      this.inputCard = "";
+      this.$message({
+        message: "添加成功",
+        type: "success"
+      });
     },
     addRelic() {
       let value = this.inputRelic.trim()
       if (!value) {
         this.$message({
-          message: "请输入遗物名称",
+          message: "请选择遗物",
           type: "warning"
         });
         return;
@@ -209,7 +259,6 @@ export default {
         return
       }
       this.relics.push(value);
-      this.dialogRelicsVisible = false;
       this.$message({
         message: "添加成功",
         type: "success"
@@ -233,7 +282,6 @@ export default {
       for (let i = 0; i < chars.length; i++) {
         chars[i] = chars[i] ^ key[i % key.length].charCodeAt(0);
       }
-      console.log(String.fromCharCode(...chars));
 
       this.output = Base64.encode(String.fromCharCode(...chars));
       this.$message({
@@ -267,6 +315,15 @@ export default {
       for (let key in allRelics) {
         out.push(key);
       }
+      out.sort()
+      return out;
+    },
+    tableCardsKeys() {
+      let out = [];
+      for (let key in allCards) {
+        out.push(key);
+      }
+      out.sort()
       return out;
     }
   },
@@ -279,11 +336,19 @@ export default {
     inputRelic(curVal, oldVal) {
       this.inputRelicTitle =
         "选择遗物\u3000( " +
-        this.inputRelic +
+        curVal +
         " - " +
-        allRelics[this.inputRelic].NAME +
+        allRelics[curVal].NAME +
         " )";
-    }
+    },
+     inputCard(curVal, oldVal) {
+      this.inputCardTitle =
+        "选择卡片\u3000( " +
+        curVal +
+        " - " +
+        allCards[curVal].NAME +
+        " )";
+    },
   }
 };
 </script>

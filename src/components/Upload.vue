@@ -1,12 +1,13 @@
 <template>
-  <el-upload style="margin-top:100px" action="" drag accept=".autosave" :before-upload="getUploadFile">
+  <el-upload style="margin-top:100px" action="" drag accept=".autosave"
+             :before-upload="getUploadFile">
     <i class="el-icon-upload"></i>
     <div class="el-upload__text">将.autosave文件拖到此处</div>
   </el-upload>
 </template>
 
 <script>
-import { Base64 } from 'js-base64'
+import {Base64} from 'js-base64'
 
 export default {
   methods: {
